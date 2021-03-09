@@ -3,12 +3,15 @@ package fasthttp
 import (
 	"github.com/edunx/lua"
 	pub "github.com/edunx/rock-public-go"
+	"github.com/fasthttp/router"
 	"github.com/valyala/fasthttp"
 )
 
 func handler( ctx *fasthttp.RequestCtx ) {
 	r := cvr.load( pub.B2S( ctx.Host() ) )
-	r.Handler(ctx)
+	ctx.SetUserValue( "router" , r)
+
+	r.L.GetExdata().(*router.Router).Handler(ctx)
 }
 
 func (v *vHandler) SetHeader(ctx *fasthttp.RequestCtx) {
@@ -38,16 +41,17 @@ func (v *vHandler) Call( L *lua.LState , ctx *fasthttp.RequestCtx ) {
 		return
 	}
 
-	th := v.Pool.Get().(*thread)
+	r := ctx.UserValue("router").(*vRouter)
+
+	th := r.Co.Get().(*thread)
 	th.co.Push( v.hook )
 	th.co.SetExdata( ctx )
 
 	if e := th.co.PCall(0 , 0 , nil) ; e != nil {
 		pub.Out.Err("http hook run err: %v", e)
 	}
-
 	th.co.SetExdata( nil )
-	v.Pool.Put( th )
+	r.Co.Put( th )
 }
 
 func (v *vHandler) Set(L *lua.LState , ctx *fasthttp.RequestCtx ) {
@@ -70,6 +74,10 @@ func handlerLoop( ctx *fasthttp.RequestCtx , vhs []string , size int , L *lua.LS
 	var vh *vHandler
 	for i := 0 ; i < size ;i++ {
 		vh = cvm.load( vhs[i] )
+		if vh == nil {
+			continue
+		}
+
 		if !CompareRule( vh.rule , risk , rSize) {
 			continue
 		}
@@ -80,30 +88,52 @@ func handlerLoop( ctx *fasthttp.RequestCtx , vhs []string , size int , L *lua.LS
 		}
 
 	}
-
 }
 
-//func DoHandlerLoop( ctx *fasthttp.RequestCtx , vhs []*vHandler , size int , L *lua.LState) {
-//	if size <= 0 {
-//		ctx.Response.SetStatusCode(400)
-//		ctx.Response.SetBodyString("not found handler")
-//		return
-//	}
-//
-//	data := ctx.Request.Header.Peek( "risk")
-//	rSize := len(data)
-//	risk:= pub.B2S( data )
-//
-//	var vh *vHandler
-//	for i := 0 ; i < size ; i++ {
-//		vh = vhs[i]
-//		if !CompareRule( vh.rule , risk , rSize) {
-//			continue
-//		}
-//
-//		vh.Set( L , ctx )
-//		if vh.eof == "on" {
-//			return //结束匹配
-//		}
-//	}
-//}
+func (vhc *vHandlerChains) Store( v interface{} , mask int  , cap int ) {
+	if cap > vhc.cap {
+		pub.Out.Err("vhandler overflower ,cap: %d , got: %d" , vhc.cap , cap)
+		return
+	}
+
+	vhc.data[cap] = v
+	vhc.mask[cap] = mask
+}
+
+func (vhc *vHandlerChains) notFound( ctx *fasthttp.RequestCtx ) {
+	ctx.Response.SetStatusCode(404)
+	ctx.Response.SetBodyString(ctx.Request.String() + " not found handler")
+}
+
+func (vhc *vHandlerChains) Do( L *lua.LState , ctx *fasthttp.RequestCtx ) {
+	if vhc.cap == 0 {
+		vhc.notFound( ctx )
+		return
+	}
+
+	data := ctx.Request.Header.Peek( "risk")
+	rSize := len(data)
+	risk:= pub.B2S( data )
+
+	var vh *vHandler
+	for i := 0 ; i < vhc.cap ; i++ {
+
+		switch vhc.mask[i] {
+		case VHSTRING:
+			vh = cvm.load( vhc.data[i].(string))
+		case VHANDLER:
+			vh = vhc.data[i].(*vHandler)
+		default:
+			continue
+		}
+
+		if !CompareRule( vh.rule , risk , rSize) {
+			continue
+		}
+
+		vh.Set( L , ctx )
+		if vh.eof == "on" {
+			return //结束匹配
+		}
+	}
+}

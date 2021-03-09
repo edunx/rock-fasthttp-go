@@ -2,10 +2,7 @@ package fasthttp
 
 import (
 	"github.com/edunx/lua"
-	"github.com/fasthttp/router"
 	"github.com/valyala/fasthttp"
-	"strings"
-	"sync"
 )
 
 const (
@@ -13,13 +10,13 @@ const (
 )
 
 func injectHttpFuncsApi(L *lua.LState , parent *lua.LTable) {
-	routerMT := L.NewTypeMetatable( ROUTERMT )
-	L.SetField(routerMT , "__index" , L.NewFunction( routerUserDataIndex ))
 
 	L.SetField(parent , "keyval" , L.NewFunction( CreateKeyValUserData ))
-	L.SetField(parent , "router" , L.NewUserDataByInterface( L.GetExdata().(*router.Router) , ROUTERMT ))
-	L.SetField(parent , "handler" , L.NewFunction( CreateHandlerUserData ))
 
+	injectVarApi(L , parent)
+	injectRuleApi(L , parent)
+	injectRouterApi(L , parent)
+	injectHandlerApi(L , parent)
 	injectResponseApi(L , parent)
 }
 
@@ -31,31 +28,6 @@ func CreateKeyValUserData(L *lua.LState) int {
 	return 1
 }
 
-func CreateHandlerUserData(L *lua.LState) int {
-	opt := L.CheckTable( 1 )
-
-	v := &vHandler{
-		rule:  strings.Split(opt.CheckString("rule" , "*") , ","),
-		tag:   opt.CheckString("tag" , "null"),
-		header: CheckKeyValUserDatUserDataSlice(L , opt.RawGetString("header")),
-		body: opt.CheckString("body" , "null"),
-		code: opt.CheckInt("code" , 400),
-		eof: opt.CheckString("eof" , "on"),
-		bodyEncode: opt.CheckString("body_encode" , ""),
-		bodyEncodeMin: opt.CheckInt("body_encode_min" , 100),
-		hook: CheckLuaFunctionByTable(L , opt , "hook"),
-	}
-
-	v.Pool = &sync.Pool{
-		New: func() interface{} {
-			co , fn := L.NewThread()
-			return &thread{ co , fn }
-		},
-	}
-
-	L.Push(L.NewLightUserData( v ))
-	return 1
-}
 
 func CheckKeyValUserData(L *lua.LState , idx int) *KeyVal {
 	ud := L.CheckLightUserData( idx )
@@ -103,49 +75,27 @@ func CheckKeyValUserDatUserDataSlice(L *lua.LState , lv lua.LValue) []*KeyVal {
 	return rc
 }
 
-func CheckHandler(L *lua.LState , idx int) *vHandler {
+func paramIndex( L *lua.LState ) int {
+	name := L.CheckString( 1 )
+	ctx := L.GetExdata().(*fasthttp.RequestCtx)
 
-	ud := L.CheckLightUserData( idx )
-	v , ok := ud.Value.(*vHandler)
+	val , ok := ctx.UserValue( name ).(string)
 	if !ok {
-		L.RaiseError("#%d must be http.vhandler , got fail" , idx)
-		return nil
-	}
-
-	return v
-}
-
-
-func routerUserDataIndex (L *lua.LState) int {
-	r := CheckRouterUserData(L, 1)
-	method := L.CheckString(2)
-
-	switch method {
-
-	case "GET", "HEAD", "POST", "PUT", "PATCH", "DELETE", "CONNECT", "OPTIONS", "TRACE":
-		L.Push(L.NewFunction(func(vm *lua.LState) int {
-			path := vm.CheckString(1)
-			handlers, size := CheckHandlers(vm)
-			r.Handle(method, path, func(ctx *fasthttp.RequestCtx) { handlerLoop( ctx, handlers, size , L ) })
-			return 0
-		}))
-
-	case "ANY":
-		L.Push(L.NewFunction(func(vm *lua.LState) int {
-			path := vm.CheckString(1)
-			handlers, size := CheckHandlers(vm)
-			r.ANY(path, func(ctx *fasthttp.RequestCtx) { handlerLoop(ctx, handlers, size , L ) })
-			return 0
-		}))
-
-	case "not_found":
-		L.Push(L.NewFunction(func(vm *lua.LState) int {
-			handlers, size := CheckHandlers(vm)
-			r.NotFound = func(ctx *fasthttp.RequestCtx) { handlerLoop(ctx, handlers, size , L ) }
-			return 0
-		}))
+		L.Push( lua.LNil )
+	} else {
+		L.Push( lua.LString(val) )
 	}
 
 	return 1
 }
 
+
+func queryIndex( L *lua.LState ) int {
+	name := L.CheckString( 1 )
+	ctx := L.GetExdata().(*fasthttp.RequestCtx)
+
+	val := ctx.QueryArgs().Peek( name )
+	L.Push( lua.LString(val) )
+
+	return 1
+}

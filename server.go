@@ -29,6 +29,7 @@ func (self *Server) Start() error {
 
 	cvm.Path( self.C.handler )
 	go cvr.sync()
+	go cvm.sync()
 
 	if self.C.daemon == "on" {
 		go s.Serve(ln)

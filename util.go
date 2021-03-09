@@ -3,20 +3,9 @@ package fasthttp
 import (
 	"github.com/edunx/lua"
 	"github.com/fasthttp/router"
+	"github.com/valyala/fasthttp"
 	"strings"
 )
-
-func newState() *lua.LState {
-	vm := lua.NewState( )
-	r  := router.New()
-
-	vm.SetExdata(r)
-	tab := vm.CreateTable( 0 , 1)
-	injectHttpFuncsApi(vm , tab)
-	vm.SetGlobal("http" , tab)
-
-	return  vm
-}
 
 func CheckRegionUserData( L *lua.LState , v lua.LValue) region {
 
@@ -68,25 +57,6 @@ func CheckHandlers( L *lua.LState) ([]string , int ) {
 	return val , len(val)
 }
 
-//func CheckHandlers( L *lua.LState ) ([]*vHandler , int) {
-//	n := L.GetTop()
-//	pub.Out.Err("got top == %d" , n)
-//	if n < 2 {
-//		L.RaiseError("not found handler fail")
-//		return nil , 0
-//	}
-//
-//	rc := make([]*vHandler , n - 1)
-//
-//	for i := 2 ; i <= n ; i++ {
-//		rc[ i - 2 ] = CheckHandler(L , i)
-//	}
-//
-//	pub.Out.Debug("got h == %v , size == %d" , rc , n)
-//
-//	return rc , n - 1
-//}
-
 func CheckLuaFunctionByTable(L *lua.LState , opt *lua.LTable , key string ) *lua.LFunction {
 	v := opt.RawGetString(key)
 
@@ -118,19 +88,23 @@ func CompareRule( rule []string , risk string , rlen int)  bool {
 		}
 
 		isize = len( item )
-		if rlen != isize + 1 {
+		if rlen < isize + 1 {
 			continue
 		}
 
 		// *risk1, *risk2
-		if item[0] == '*' && item[1:] == risk {
+		if item[0] == '*' && item[1:] == risk[:isize - 1] {
 			return true
 		}
 
-		if item[isize] == '*' && item[:rlen] == risk {
+		if item[isize] == '*' && item[:rlen] == risk[rlen - isize: rlen - 1] {
 			return true
 		}
 	}
 
 	return false
+}
+
+func CheckRequestCtx(L *lua.LState) *fasthttp.RequestCtx {
+	return L.GetExdata().(*fasthttp.RequestCtx)
 }

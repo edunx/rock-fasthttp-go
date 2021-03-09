@@ -2,10 +2,9 @@ package fasthttp
 
 import (
 	"fmt"
-	"github.com/edunx/lua"
 	pub "github.com/edunx/rock-public-go"
-	"github.com/fasthttp/router"
 	"os"
+	"sync"
 	"time"
 )
 
@@ -28,9 +27,6 @@ func (self *vRCache) filename( name string ) string {
 	return fmt.Sprintf("%s/%s.lua" , self.path , name )
 }
 
-func (self *vRCache) NewState() *lua.LState {
-	return newState()
-}
 
 func (self *vRCache) Compile( name string  ) *vRouter {
 
@@ -42,7 +38,7 @@ func (self *vRCache) Compile( name string  ) *vRouter {
 	}
 
 	//编译文件
-	L := self.NewState()
+	L := newHttpThreadState()
 	if e := L.DoFile( filename ); e != nil {
 		pub.Out.Debug("load %s vhost fail , err: %v" , name , e)
 		return nil
@@ -54,23 +50,31 @@ func (self *vRCache) Compile( name string  ) *vRouter {
 		modTime: stat.ModTime().Unix(),
 	}
 
+	//注入处理线程池
+	v.Co = sync.Pool{
+		New: func() interface{} {
+			co , fn := L.NewThread()
+			return &thread{ co , fn }
+		},
+	}
+
 	self.pool.Store(name , v)
 
 	return v
 }
 
-func (self *vRCache) load( name string ) *router.Router {
+func (self *vRCache) load( name string ) *vRouter {
 	r , ok := self.pool.Load( name )
 	if ok {
-		return r.(*vRouter).L.GetExdata().(*router.Router)
+		return r.(*vRouter)
 	}
 
 	v := self.Compile( name )
 	if v == nil {
-		return self.unknown.L.GetExdata().(*router.Router)
+		return self.unknown
 	}
 
-	return v.L.GetExdata().(*router.Router)
+	return v
 }
 
 func (self *vRCache) Unknown( name string ) {

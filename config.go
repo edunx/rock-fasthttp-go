@@ -6,6 +6,11 @@ import (
 	"sync"
 )
 
+const (
+	VHANDLER  int = iota //vhander struct
+	VHSTRING             //string handler
+)
+
 var (
 	cvr = vRCache{ pool: sync.Map{} }
 	cvm = vMCache{ pool: sync.Map{} }
@@ -45,7 +50,15 @@ type (
 		cancelFunc context.CancelFunc
 	}
 
-	vHandler struct {
+	vRule struct {
+		name   string
+		method string
+		value  interface{}
+	}
+
+	vHandler  struct {
+		count         int
+		rule2         []vRule
 		rule          []string
 		header        []*KeyVal
 		tag           string
@@ -55,14 +68,24 @@ type (
 		bodyEncodeMin int
 		eof           string
 		hook          *lua.LFunction
-
-		Pool          *sync.Pool //worker pool
 	}
+
+	vHandlerChains struct {
+		data  []interface{}
+		mask  []int
+
+		cap   int
+		//vhs  []vHandler
+		//vhn  []string
+	}
+
 )
 
 type (
 	vRouter struct {
-		L       *lua.LState
+		L           *lua.LState
+		Co          sync.Pool
+
 		modTime int64
 		name    string
 	}
