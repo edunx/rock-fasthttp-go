@@ -7,6 +7,19 @@ import (
 	"strings"
 )
 
+func newState() *lua.LState {
+
+	vm := lua.NewState( )
+	r  := router.New()
+	vm.SetExdata(r)
+	tab := vm.CreateTable( 0 , 3)
+	injectHttpFuncsApi(vm , tab)
+	vm.SetGlobal("http" , tab)
+
+	r.PanicHandler = panicHandler
+	return  vm
+}
+
 func CheckRegionUserData( L *lua.LState , v lua.LValue) region {
 	ud , ok := v.(*lua.LUserData)
 	if !ok {

@@ -38,7 +38,7 @@ func (self *vRCache) Compile( name string  ) *vRouter {
 	}
 
 	//编译文件
-	L := newHttpThreadState()
+	L := newState()
 	if e := L.DoFile( filename ); e != nil {
 		pub.Out.Debug("load %s vhost fail , err: %v" , name , e)
 		return nil

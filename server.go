@@ -8,7 +8,6 @@ import (
 )
 
 func (self *Server) Start() error {
-
 	pub.Out.Err("fasthttp start info %#v" , self.C)
 
 	ln , err := self.Listen()

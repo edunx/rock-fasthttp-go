@@ -19,7 +19,7 @@ func (self *vMCache) filename(name string) string {
 func (self *vMCache) load( name string ) *vHandler {
 
 	if self.L == nil {
-		self.L = newHttpThreadState()
+		self.L = newState()
 	}
 
 	v , ok := self.pool.Load( name )

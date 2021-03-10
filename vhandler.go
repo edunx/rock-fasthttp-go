@@ -1,17 +1,34 @@
 package fasthttp
 
 import (
+	"fmt"
 	"github.com/edunx/lua"
 	pub "github.com/edunx/rock-public-go"
 	"github.com/fasthttp/router"
 	"github.com/valyala/fasthttp"
 )
 
-func handler( ctx *fasthttp.RequestCtx ) {
-	r := cvr.load( pub.B2S( ctx.Host() ) )
-	ctx.SetUserValue( "router" , r)
+func panicHandler( ctx *fasthttp.RequestCtx , val interface{} ) {
+	ctx.Response.SetStatusCode( 500)
+	ctx.Response.SetBodyString(fmt.Sprintf("%v" , val))
+}
 
-	r.L.GetExdata().(*router.Router).Handler(ctx)
+func handler( ctx *fasthttp.RequestCtx ) {
+	vrr := cvr.load( pub.B2S( ctx.Host() ) )
+	if vrr == nil {
+		ctx.Response.SetStatusCode(500)
+		ctx.Response.SetBody(pub.S2B("not found router"))
+		return
+	}
+
+	r , ok := vrr.L.GetExdata().(*router.Router)
+	if !ok {
+		ctx.Response.SetStatusCode(500)
+		ctx.Response.SetBody(pub.S2B("expect invalid router"))
+		return
+	}
+
+	r.Handler(ctx)
 }
 
 func (v *vHandler) SetHeader(ctx *fasthttp.RequestCtx) {
