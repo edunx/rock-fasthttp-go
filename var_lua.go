@@ -23,7 +23,7 @@ func varIndex(L *lua.LState) int {
 	name := L.CheckString(2)
 
 	switch name {
-	case "remot_addr":
+	case "remote_addr":
 		L.Push(lua.LString(ctx.RemoteAddr().String()))
 	case "host":
 		L.Push(lua.LString(ctx.Host()))
@@ -39,6 +39,8 @@ func varIndex(L *lua.LState) int {
 		L.Push(lua.LNumber(ctx.Time().Unix()))
 	case "cookie_raw":
 		L.Push(lua.LString(ctx.Request.Header.Peek("cookie") ) )
+	case "header_raw":
+		L.Push(lua.LString(ctx.Request.Header.String() ) )
 	case "content_length":
 		L.Push(lua.LNumber(ctx.Request.Header.ContentLength()))
 	case "content_type":
@@ -79,7 +81,6 @@ func varIndex(L *lua.LState) int {
 
 			return 1
 		}
-
 	}
 
 	return 1

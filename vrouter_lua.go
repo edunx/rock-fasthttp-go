@@ -25,7 +25,7 @@ func routerUserDataIndex (L *lua.LState) int {
 		L.Push(L.NewFunction(func(vm *lua.LState) int {
 			path := vm.CheckString(1)
 			chains := CheckHandlerChains(vm)
-			r.Handle(method, path, func(ctx *fasthttp.RequestCtx) { chains.Do( L , ctx ) })
+			r.Handle(method, path, func(ctx *fasthttp.RequestCtx) { chains.Do( vm , ctx ) })
 			return 0
 		}))
 
@@ -33,14 +33,21 @@ func routerUserDataIndex (L *lua.LState) int {
 		L.Push(L.NewFunction(func(vm *lua.LState) int {
 			path := vm.CheckString(1)
 			chains := CheckHandlerChains(vm)
-			r.ANY(path, func(ctx *fasthttp.RequestCtx) { chains.Do( L , ctx ) })
+			r.ANY(path, func(ctx *fasthttp.RequestCtx) { chains.Do( vm , ctx ) })
 			return 0
 		}))
 
 	case "not_found":
 		L.Push(L.NewFunction(func(vm *lua.LState) int {
 			chains := CheckHandlerChains(vm)
-			r.NotFound = func(ctx *fasthttp.RequestCtx) { chains.Do(L , ctx ) }
+			r.NotFound = func(ctx *fasthttp.RequestCtx) { chains.Do( vm , ctx ) }
+			return 0
+		}))
+	case "file":
+		L.Push(L.NewFunction(func(vm *lua.LState) int {
+			path := vm.CheckString(1)
+			root := vm.CheckString(2)
+			r.ServeFiles( path , root )
 			return 0
 		}))
 	}

@@ -2,6 +2,7 @@ package fasthttp
 
 import (
 	"github.com/edunx/lua"
+	base "github.com/edunx/rock-base-go"
 	"github.com/valyala/fasthttp"
 )
 
@@ -18,6 +19,8 @@ func injectHttpFuncsApi(L *lua.LState , parent *lua.LTable) {
 	injectRouterApi(L , parent)
 	injectHandlerApi(L , parent)
 	injectResponseApi(L , parent)
+
+	base.LuaInjectApi(L , parent)
 }
 
 func CreateKeyValUserData(L *lua.LState) int {

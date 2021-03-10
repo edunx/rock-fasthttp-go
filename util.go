@@ -8,18 +8,18 @@ import (
 )
 
 func CheckRegionUserData( L *lua.LState , v lua.LValue) region {
-
 	ud , ok := v.(*lua.LUserData)
 	if !ok {
-		L.RaiseError("region must be userdata , go %T" , v)
+		//L.RaiseError("region must be userdata , go %T" , v)
 		return nil
 	}
 
 	r , ok := ud.Value.(region)
 	if !ok {
-		L.RaiseError("region must have search , but not found")
+		//L.RaiseError("region must have search , but not found")
 		return nil
 	}
+
 
 	return r
 }

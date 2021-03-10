@@ -75,8 +75,6 @@ type (
 		mask  []int
 
 		cap   int
-		//vhs  []vHandler
-		//vhn  []string
 	}
 
 )

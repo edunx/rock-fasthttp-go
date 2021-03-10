@@ -9,28 +9,28 @@ func injectResponseApi(L *lua.LState, parent *lua.LTable) {
 
 	respTab := L.CreateTable(0 , 3)
 
-	L.SetField(respTab , "set_body" ,   L.NewFunction( setBody ))
-	L.SetField(respTab , "set_code" ,   L.NewFunction( setCode ))
-	L.SetField(respTab , "set_header" , L.NewFunction( setheader ))
+	L.SetField(respTab , "say" ,   L.NewFunction( responseSay  ))
+	L.SetField(respTab , "exit" ,   L.NewFunction( responseExit ))
+	L.SetField(respTab , "header" , L.NewFunction( responseHeader ))
 
 	L.SetField(parent , "response" , respTab)
 }
 
-func setBody(L *lua.LState) int {
+func responseSay(L *lua.LState) int {
 	ctx := CheckRequestCtx( L )
 	body := L.CheckString(1)
 	ctx.Response.SetBody( pub.S2B( body ))
 	return 0
 }
 
-func setCode(L *lua.LState) int {
+func responseExit(L *lua.LState) int {
 	code := L.CheckInt(1)
 	ctx := CheckRequestCtx( L )
 	ctx.Response.SetStatusCode( code )
 	return 0
 }
 
-func setheader(L *lua.LState) int {
+func responseHeader(L *lua.LState) int {
 	tab := L.CheckTable( 1 )
 	kvs := CheckKeyValUserDatUserDataSlice(L , tab)
 	ctx := CheckRequestCtx( L )
