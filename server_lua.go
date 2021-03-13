@@ -11,8 +11,8 @@ const (
 
 func LuaInjectServerApi(L *lua.LState , parent *lua.LTable) {
 	mt := L.NewTypeMetatable( SERVERMT )
-	L.SetField(mt , "__index" , L.NewFunction(ServerGet))
-	L.SetField(mt , "__newindex" , L.NewFunction(ServerSet))
+	L.SetField(mt , "__index" , L.NewFunction(serverIndex))
+	L.SetField(mt , "__newindex" , L.NewFunction(serverNewindex))
 
 	L.SetField(parent , "server" , L.NewFunction(CreateServerUserData))
 }
@@ -24,8 +24,8 @@ func CreateServerUserData(L *lua.LState) int {
 		C: Config{
 			listen:    opt.CheckSocket("listen" , L),
 			protocol:  opt.CheckString("protocol" , "tcp"),
-			vhost:     opt.CheckString("vhost" , "vhost"),
-			handler:   opt.CheckString("handler" , "vhandler"),
+			routers:     opt.CheckString("router" , "router"),
+			handler:   opt.CheckString("handler" , "handler"),
 			unknown:   opt.CheckString("default" , "default"),
 			reuseport: opt.CheckString("reuseport" , "off"),
 			keepalive: opt.CheckString("keepalive" , "on"),
@@ -40,7 +40,7 @@ func CreateServerUserData(L *lua.LState) int {
 	return 1
 }
 
-func ServerGet(L *lua.LState) int {
+func serverIndex(L *lua.LState) int {
 
 	self := CheckServerUserData(L , 1)
 	name := L.CheckString(2)
@@ -63,7 +63,7 @@ func ServerGet(L *lua.LState) int {
 	return 1
 }
 
-func ServerSet(L *lua.LState) int {
+func serverNewindex(L *lua.LState) int {
 	return 0
 }
 

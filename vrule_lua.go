@@ -22,4 +22,3 @@ func createRuleLightUserData(L *lua.LState) int {
 	L.Push( L.NewLightUserData( val ))
 	return 1
 }
-

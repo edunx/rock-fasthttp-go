@@ -2,15 +2,17 @@ package fasthttp
 
 import (
 	"fmt"
-	"github.com/edunx/lua"
 	pub "github.com/edunx/rock-public-go"
 	"github.com/fasthttp/router"
 	"github.com/valyala/fasthttp"
+	"runtime/debug"
 )
 
 func panicHandler( ctx *fasthttp.RequestCtx , val interface{} ) {
 	ctx.Response.SetStatusCode( 500)
-	ctx.Response.SetBodyString(fmt.Sprintf("%v" , val))
+	e := fmt.Sprintf("%v %s" , val , debug.Stack() )
+	pub.Out.Err(e)
+	ctx.Response.SetBodyString( e )
 }
 
 func handler( ctx *fasthttp.RequestCtx ) {
@@ -28,6 +30,7 @@ func handler( ctx *fasthttp.RequestCtx ) {
 		return
 	}
 
+	ctx.SetUserValue( "vrr" , vrr)
 	r.Handler(ctx)
 }
 
@@ -53,31 +56,14 @@ func (v *vHandler) SetBody( ctx *fasthttp.RequestCtx) {
 	ctx.Response.SetBodyString( v.body )
 }
 
-func (v *vHandler) Call( L *lua.LState , ctx *fasthttp.RequestCtx ) {
-	if v.hook == nil {
-		return
-	}
-
-	r := ctx.UserValue("router").(*vRouter)
-
-	th := r.Co.Get().(*thread)
-	th.co.Push( v.hook )
-	th.co.SetExdata( ctx )
-
-	if e := th.co.PCall(0 , 0 , nil) ; e != nil {
-		pub.Out.Err("http hook run err: %v", e)
-	}
-	th.co.SetExdata( nil )
-	r.Co.Put( th )
-}
-
-func (v *vHandler) Set(L *lua.LState , ctx *fasthttp.RequestCtx ) {
+func (v *vHandler) Set( ctx *fasthttp.RequestCtx ) {
 	v.SetHeader( ctx )
 	v.SetBody( ctx )
-	v.Call( L , ctx )
+
+	call(ctx , v.hook)
 }
 
-func handlerLoop( ctx *fasthttp.RequestCtx , vhs []string , size int , L *lua.LState) {
+func handlerLoop( ctx *fasthttp.RequestCtx , vhs []string , size int ) {
 	if size <= 0 {
 		ctx.Response.SetStatusCode(400)
 		ctx.Response.SetBodyString("not found handler")
@@ -99,7 +85,7 @@ func handlerLoop( ctx *fasthttp.RequestCtx , vhs []string , size int , L *lua.LS
 			continue
 		}
 
-		vh.Set( L , ctx )
+		vh.Set( ctx )
 		if vh.eof == "on" {
 			return //结束匹配
 		}
@@ -122,7 +108,7 @@ func (vhc *vHandlerChains) notFound( ctx *fasthttp.RequestCtx ) {
 	ctx.Response.SetBodyString(ctx.Request.String() + " not found handler")
 }
 
-func (vhc *vHandlerChains) Do( L *lua.LState , ctx *fasthttp.RequestCtx ) {
+func (vhc *vHandlerChains) Do( ctx *fasthttp.RequestCtx ) {
 	if vhc.cap == 0 {
 		vhc.notFound( ctx )
 		return
@@ -148,7 +134,7 @@ func (vhc *vHandlerChains) Do( L *lua.LState , ctx *fasthttp.RequestCtx ) {
 			continue
 		}
 
-		vh.Set( L , ctx )
+		vh.Set( ctx )
 		if vh.eof == "on" {
 			return //结束匹配
 		}

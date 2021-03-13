@@ -3,7 +3,6 @@ package fasthttp
 import (
 	"github.com/edunx/lua"
 	base "github.com/edunx/rock-base-go"
-	"github.com/valyala/fasthttp"
 )
 
 const (
@@ -76,29 +75,4 @@ func CheckKeyValUserDatUserDataSlice(L *lua.LState , lv lua.LValue) []*KeyVal {
 	})
 
 	return rc
-}
-
-func paramIndex( L *lua.LState ) int {
-	name := L.CheckString( 1 )
-	ctx := L.GetExdata().(*fasthttp.RequestCtx)
-
-	val , ok := ctx.UserValue( name ).(string)
-	if !ok {
-		L.Push( lua.LNil )
-	} else {
-		L.Push( lua.LString(val) )
-	}
-
-	return 1
-}
-
-
-func queryIndex( L *lua.LState ) int {
-	name := L.CheckString( 1 )
-	ctx := L.GetExdata().(*fasthttp.RequestCtx)
-
-	val := ctx.QueryArgs().Peek( name )
-	L.Push( lua.LString(val) )
-
-	return 1
 }

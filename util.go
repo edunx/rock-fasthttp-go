@@ -2,6 +2,7 @@ package fasthttp
 
 import (
 	"github.com/edunx/lua"
+	pub "github.com/edunx/rock-public-go"
 	"github.com/fasthttp/router"
 	"github.com/valyala/fasthttp"
 	"strings"
@@ -18,6 +19,25 @@ func newState() *lua.LState {
 
 	r.PanicHandler = panicHandler
 	return  vm
+}
+
+func call(ctx *fasthttp.RequestCtx , hook *lua.LFunction) {
+	if hook == nil {
+		return
+	}
+
+	r := ctx.UserValue("vrr").(*vRouter)
+
+	th := r.Co.Get().(*thread)
+	th.co.Push( hook )
+	th.co.SetExdata( ctx )
+
+	if e := th.co.PCall(0 , 0 , nil) ; e != nil {
+		pub.Out.Err("http hook run err: %v", e)
+	}
+
+	th.co.SetExdata( nil )
+	r.Co.Put( th )
 }
 
 func CheckRegionUserData( L *lua.LState , v lua.LValue) region {

@@ -2,10 +2,32 @@ package fasthttp
 
 import (
 	pub "github.com/edunx/rock-public-go"
+	"github.com/fasthttp/router"
 	"github.com/valyala/fasthttp"
 	"github.com/valyala/fasthttp/reuseport"
 	"net"
 )
+
+func (self *Server) handler( ctx *fasthttp.RequestCtx ) {
+	ctx.Logger().Printf("logger")
+
+	vrr := cvr.load( pub.B2S( ctx.Host() ) )
+	if vrr == nil {
+		ctx.Response.SetStatusCode(500)
+		ctx.Response.SetBody(pub.S2B("not found router"))
+		return
+	}
+
+	r , ok := vrr.L.GetExdata().(*router.Router)
+	if !ok {
+		ctx.Response.SetStatusCode(500)
+		ctx.Response.SetBody(pub.S2B("expect invalid router"))
+		return
+	}
+
+	ctx.SetUserValue( "vrr" , vrr)
+	r.Handler(ctx)
+}
 
 func (self *Server) Start() error {
 	pub.Out.Err("fasthttp start info %#v" , self.C)
@@ -17,12 +39,12 @@ func (self *Server) Start() error {
 
 	//init Server
 	s := &fasthttp.Server{
-		Handler: handler,
+		Handler: self.handler,
 		TCPKeepalive: self.Keepalive(),
 	}
 
 	//注册虚拟路径
-	cvr.Path(self.C.vhost)
+	cvr.Path(self.C.routers)
 	cvr.Unknown(self.C.unknown)
 
 	cvm.Path( self.C.handler )

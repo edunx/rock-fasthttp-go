@@ -87,5 +87,15 @@ func varIndex(L *lua.LState) int {
 }
 
 func varNewIndex(L *lua.LState) int {
+	ctx := CheckRequestCtx( L )
+	name := L.CheckString(2)
+
+	switch name  {
+	case "uri":
+		path := L.CheckString( 3 )
+		ctx.Request.URI().SetPath( path )
+
+	}
+
 	return 0
 }

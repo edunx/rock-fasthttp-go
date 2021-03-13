@@ -3,6 +3,7 @@ package fasthttp
 import (
 	"context"
 	"github.com/edunx/lua"
+	"github.com/valyala/fasthttp"
 	"sync"
 )
 
@@ -23,7 +24,7 @@ type (
 
 	Config struct {
 		listen    string
-		vhost     string
+		routers   string
 		handler   string
 		keepalive string
 		protocol  string
@@ -58,7 +59,6 @@ type (
 
 	vHandler  struct {
 		count         int
-		rule2         []vRule
 		rule          []string
 		header        []*KeyVal
 		tag           string
@@ -68,6 +68,11 @@ type (
 		bodyEncodeMin int
 		eof           string
 		hook          *lua.LFunction
+	}
+
+	vFile struct {
+		fs   *fasthttp.FS
+		hook *lua.LFunction
 	}
 
 	vHandlerChains struct {
@@ -107,6 +112,7 @@ type(
 		pool    sync.Map
 		path    string
 		L       *lua.LState
+		once    sync.Once
 	}
 )
 

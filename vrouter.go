@@ -33,14 +33,14 @@ func (self *vRCache) Compile( name string  ) *vRouter {
 	filename := self.filename( name )
 	stat , err := os.Stat( filename )
 	if os.IsNotExist(err) {
-		//pub.Out.Debug("not found %s vhost" , filename )
+		//pub.Out.Debug("not found %s routers" , filename )
 		return nil
 	}
 
 	//编译文件
 	L := newState()
 	if e := L.DoFile( filename ); e != nil {
-		pub.Out.Debug("load %s vhost fail , err: %v" , name , e)
+		pub.Out.Debug("load %s routers fail , err: %v" , name , e)
 		return nil
 	}
 
@@ -60,6 +60,7 @@ func (self *vRCache) Compile( name string  ) *vRouter {
 
 	self.pool.Store(name , v)
 
+	pub.Out.Err("load %s routers success" , filename )
 	return v
 }
 
@@ -97,12 +98,12 @@ func (self *vRCache) update( name string , obj *vRouter ) {
 		if obj.modTime == stat.ModTime().Unix() {
 			return
 		}
-
+		pub.Out.Err("start update %s vrouter" , filename)
 		self.Compile( name )
 }
 
 func (self *vRCache) sync() {
-	tk := time.NewTicker( 1000 * time.Millisecond )
+	tk := time.NewTicker( 500 * time.Millisecond )
 	for range tk.C {
 		self.pool.Range(func(k interface{} , v interface{} ) bool {
 			name := k.(string)
