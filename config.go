@@ -3,6 +3,9 @@ package fasthttp
 import (
 	"context"
 	"github.com/edunx/lua"
+	base "github.com/edunx/rock-base-go"
+	tp "github.com/edunx/rock-transport-go"
+	"github.com/fasthttp/router"
 	"github.com/valyala/fasthttp"
 	"sync"
 )
@@ -22,33 +25,43 @@ type (
 		Search( string ) (int64 , []byte , error)
 	}
 
+	vPush interface {
+		push( interface{} )
+	}
+
 	Config struct {
-		listen    string
-		routers   string
-		handler   string
-		keepalive string
-		protocol  string
-		reuseport string
-		unknown   string
-		daemon    string
+		listen       string
+		routers      string
+		handler      string
+		keepalive    string
+		protocol     string
+		reuseport    string
+		unknown      string
+		daemon       string
+		accessLog    string
+		accessFormat string
+		accessRegion string
 	}
 
 	Server struct {
-		C         Config
-		region    region
+		C            Config
+		region       region
+		FServer      *fasthttp.Server
+		vlog         vlogger
+		access       tp.Tunnel
 	}
 )
 
 type (
 
-	KeyVal struct {
-		Key string
-		Val string
-	}
-
 	thread struct {
 		co  *lua.LState
 		cancelFunc context.CancelFunc
+	}
+
+	vContext struct {
+		vrr *vRouter
+		vth *thread
 	}
 
 	vRule struct {
@@ -60,19 +73,11 @@ type (
 	vHandler  struct {
 		count         int
 		rule          []string
-		header        []*KeyVal
-		tag           string
+		header        []*base.KeyVal
 		body          string
 		code          int
-		bodyEncode    string
-		bodyEncodeMin int
 		eof           string
 		hook          *lua.LFunction
-	}
-
-	vFile struct {
-		fs   *fasthttp.FS
-		hook *lua.LFunction
 	}
 
 	vHandlerChains struct {
@@ -82,9 +87,17 @@ type (
 		cap   int
 	}
 
+	vlogger struct {
+		format      []string
+		encode      func(*fasthttp.RequestCtx) []byte
+	}
+
 )
 
 type (
+	//转化
+	Router	router.Router
+
 	vRouter struct {
 		L           *lua.LState
 		Co          sync.Pool
@@ -98,7 +111,6 @@ type (
 		unknown *vRouter
 		path    string
 	}
-
 )
 
 type(

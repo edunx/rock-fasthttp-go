@@ -2,6 +2,7 @@ package fasthttp
 
 import (
 	"github.com/edunx/lua"
+	base "github.com/edunx/rock-base-go"
 	"strings"
 )
 
@@ -26,13 +27,10 @@ func CreateHandlerUserData(L *lua.LState) int {
 
 	v := &vHandler{
 		rule:  strings.Split(opt.CheckString("rule" , "*") , ","),
-		tag:   opt.CheckString("tag" , "null"),
-		header: CheckKeyValUserDatUserDataSlice(L , opt.RawGetString("header")),
+		header: base.CheckKeyValUserDatUserDataSlice(L , opt.RawGetString("header")),
 		body: opt.CheckString("body" , "null"),
 		code: opt.CheckInt("code" , 400),
 		eof: opt.CheckString("eof" , "on"),
-		bodyEncode: opt.CheckString("body_encode" , ""),
-		bodyEncodeMin: opt.CheckInt("body_encode_min" , 100),
 		hook: CheckLuaFunctionByTable(L , opt , "hook"),
 	}
 

@@ -53,8 +53,7 @@ func (self *vRCache) Compile( name string  ) *vRouter {
 	//注入处理线程池
 	v.Co = sync.Pool{
 		New: func() interface{} {
-			co , fn := L.NewThread()
-			return &thread{ co , fn }
+			return newThread(L)
 		},
 	}
 

@@ -18,65 +18,84 @@ func injectVarApi(L *lua.LState , parent *lua.LTable) {
 	L.SetField(parent , "var" , L.NewUserDataByInterface(nil , VARMT )) //默认
 }
 
-func varIndex(L *lua.LState) int {
-	ctx := CheckRequestCtx( L )
-	name := L.CheckString(2)
+func varIndex(co *lua.LState) int {
+	ctx := CheckRequestCtx(co)
+	name := co.CheckString(2)
 
 	switch name {
 	case "remote_addr":
-		L.Push(lua.LString(ctx.RemoteAddr().String()))
+		co.Push(lua.LString(ctx.RemoteIP().String()))
+	case "remote_port":
+		co.Push(lua.LNumber(httpRemotePort(ctx)))
+	case "server_addr":
+		co.Push(lua.LString(ctx.LocalIP().String()))
+	case "server_port":
+		co.Push(lua.LNumber(httpServerPort(ctx)))
 	case "host":
-		L.Push(lua.LString(ctx.Host()))
-	case "path":
-		L.Push(lua.LString(ctx.Request.URI().Path()))
+		co.Push(lua.LString(ctx.Host()))
+	case "uri":
+		co.Push(lua.LString(ctx.Request.URI().Path()))
 	case "args":
-		L.Push(lua.LString(ctx.QueryArgs().String()))
+		co.Push(lua.LString(ctx.QueryArgs().String()))
 	case "full_uri":
-		L.Push(lua.LString(ctx.Request.URI().FullURI()))
+		co.Push(lua.LString(ctx.Request.URI().FullURI()))
 	case "request_uri":
-		L.Push(lua.LString(ctx.Request.URI().RequestURI()))
+		co.Push(lua.LString(ctx.Request.URI().RequestURI()))
 	case "http_time":
-		L.Push(lua.LNumber(ctx.Time().Unix()))
+		co.Push(lua.LNumber(ctx.Time().Unix()))
 	case "cookie_raw":
-		L.Push(lua.LString(ctx.Request.Header.Peek("cookie") ) )
+		co.Push(lua.LString(ctx.Request.Header.Peek("cookie") ) )
 	case "header_raw":
-		L.Push(lua.LString(ctx.Request.Header.String() ) )
+		co.Push(lua.LString(ctx.Request.Header.String() ) )
 	case "content_length":
-		L.Push(lua.LNumber(ctx.Request.Header.ContentLength()))
+		co.Push(lua.LNumber(ctx.Request.Header.ContentLength()))
 	case "content_type":
-		L.Push(lua.LString(ctx.Request.Header.ContentType()) )
+		co.Push(lua.LString(ctx.Request.Header.ContentType()) )
 	case "content":
-		L.Push(lua.LString(ctx.Request.Body()))
+		co.Push(lua.LString(ctx.Request.Body()))
+	case "region_cityid":
+		co.Push(lua.LNumber(httpRegionCityId( ctx )))
+	case "region_info":
+		co.Push(lua.LString(httpRegionInfoRaw( ctx )))
+	case "ua":
+		co.Push(lua.LString(ctx.Request.Header.UserAgent()))
+	case "referer":
+		co.Push(lua.LString(ctx.Request.Header.Referer()))
+	case "status":
+		co.Push(lua.LString(ctx.Response.StatusCode()))
+	case "sent":
+		co.Push(lua.LNumber(ctx.Response.Header.ContentLength()))
+
 	default:
 		size := len(name)
 		if size > 4 && name[:4] == "arg_" {
-			L.Push(lua.LString(ctx.QueryArgs().Peek( name[4:] )))
+			co.Push(lua.LString(ctx.QueryArgs().Peek( name[4:] )))
 			return 1
 		}
 
 		if size > 5 && name[:5] == "post_" {
-			L.Push(lua.LString(ctx.Request.PostArgs().Peek( name[5:])))
+			co.Push(lua.LString(ctx.Request.PostArgs().Peek( name[5:])))
 			return 1
 		}
 
 		if size > 5 && name[:5] == "http_" {
-			L.Push( lua.LString(ctx.Request.Header.Peek(name[5:])) )
+			co.Push( lua.LString(ctx.Request.Header.Peek(name[5:])) )
 			return 1
 		}
 
 		if size > 7 && name[:7] == "cookie_" {
-			L.Push(lua.LString(ctx.Request.Header.Cookie( name[7:])))
+			co.Push(lua.LString(ctx.Request.Header.Cookie( name[7:])))
 			return 1
 		}
 
 		if size > 6 && name[:6] == "param_" {
 			obj := ctx.UserValue( name[6:])
 			if val , ok := obj.(string); ok {
-				L.Push(lua.LString( val ))
+				co.Push(lua.LString( val ))
 				return  1
 			}
 
-			L.Push(lua.LNil)
+			co.Push(lua.LNil)
 			pub.Out.Err(" param not found ")
 
 			return 1
@@ -86,13 +105,13 @@ func varIndex(L *lua.LState) int {
 	return 1
 }
 
-func varNewIndex(L *lua.LState) int {
-	ctx := CheckRequestCtx( L )
-	name := L.CheckString(2)
+func varNewIndex(co *lua.LState) int {
+	ctx := CheckRequestCtx(co)
+	name := co.CheckString(2)
 
 	switch name  {
 	case "uri":
-		path := L.CheckString( 3 )
+		path := co.CheckString( 3 )
 		ctx.Request.URI().SetPath( path )
 
 	}

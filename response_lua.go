@@ -3,6 +3,7 @@ package fasthttp
 import (
 	"github.com/edunx/lua"
 	pub "github.com/edunx/rock-public-go"
+	base "github.com/edunx/rock-base-go"
 	"strings"
 )
 
@@ -46,14 +47,14 @@ func responseExit(L *lua.LState) int {
 
 func responseHeader(L *lua.LState) int {
 	tab := L.CheckTable( 1 )
-	kvs := CheckKeyValUserDatUserDataSlice(L , tab)
+	kvs := base.CheckKeyValUserDatUserDataSlice(L , tab)
 	ctx := CheckRequestCtx( L )
 	size := len(kvs)
 	if size == 0 {
 		return 0
 	}
 
-	var item *KeyVal
+	var item *base.KeyVal
 	for i:=0 ; i < size ;i++ {
 		item = kvs[i]
 		ctx.Response.Header.Set(item.Key , item.Val)

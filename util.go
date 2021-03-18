@@ -3,16 +3,28 @@ package fasthttp
 import (
 	"github.com/edunx/lua"
 	pub "github.com/edunx/rock-public-go"
+	tp "github.com/edunx/rock-transport-go"
 	"github.com/fasthttp/router"
 	"github.com/valyala/fasthttp"
-	"strings"
 )
+
+func newThread(L *lua.LState ) *thread {
+	co , fn := L.NewThread()
+	co.Parent = L
+
+	return &thread{ co , fn }
+}
 
 func newState() *lua.LState {
 
+	//创建虚拟解释的虚拟机
 	vm := lua.NewState( )
 	r  := router.New()
-	vm.SetExdata(r)
+
+	vm.ExData.Set("router" , r) //注册虚拟机 router 对象
+
+	//vm.ExData.Set("logger" , func( ctx *fasthttp.RequestCtx) { ctx.Logger().Printf("default")})
+
 	tab := vm.CreateTable( 0 , 3)
 	injectHttpFuncsApi(vm , tab)
 	vm.SetGlobal("http" , tab)
@@ -21,23 +33,25 @@ func newState() *lua.LState {
 	return  vm
 }
 
-func call(ctx *fasthttp.RequestCtx , hook *lua.LFunction) {
+func call(ctx *fasthttp.RequestCtx , hook *lua.LFunction ) {
 	if hook == nil {
 		return
 	}
 
-	r := ctx.UserValue("vrr").(*vRouter)
+	vctx := ctx.UserValue("vctx").(*vContext)
+	if vctx.vth == nil {
+		vctx.vth = vctx.vrr.Co.Get().(*thread)
+	}
 
-	th := r.Co.Get().(*thread)
-	th.co.Push( hook )
-	th.co.SetExdata( ctx )
-
-	if e := th.co.PCall(0 , 0 , nil) ; e != nil {
+	vctx.vth.co.ExData.Set("ctx" , ctx)
+	vctx.vth.co.Push( hook )
+	if e := vctx.vth.co.PCall(0 , 0 , nil) ; e != nil {
 		pub.Out.Err("http hook run err: %v", e)
 	}
 
-	th.co.SetExdata( nil )
-	r.Co.Put( th )
+	vctx.vth.co.ExData.Set("ctx" , nil)
+	vctx.vrr.Co.Put(vctx.vth)
+
 }
 
 func CheckRegionUserData( L *lua.LState , v lua.LValue) region {
@@ -55,6 +69,23 @@ func CheckRegionUserData( L *lua.LState , v lua.LValue) region {
 
 
 	return r
+}
+
+func CheckTunnelUserData(L *lua.LState , v lua.LValue) tp.Tunnel {
+	ud , ok := v.(*lua.LUserData)
+	if !ok {
+		pub.Out.Err("access log tunnel got nil")
+		return nil
+	}
+
+	obj , ok := ud.Value.(tp.Tunnel)
+	if !ok {
+		pub.Out.Err("access log tunnel got invalid")
+		return nil
+	}
+
+	return obj
+
 }
 
 func CheckServerUserData(L *lua.LState , idx int ) *Server {
@@ -82,12 +113,6 @@ func CheckRouterUserData(L *lua.LState , idx int ) *router.Router{
 
 	L.TypeError(idx , lua.LTUserData)
 	return nil
-}
-
-func CheckHandlers( L *lua.LState) ([]string , int ) {
-	data := L.CheckString( 2 )
-	val  := strings.Split( data , ",")
-	return val , len(val)
 }
 
 func CheckLuaFunctionByTable(L *lua.LState , opt *lua.LTable , key string ) *lua.LFunction {
@@ -138,6 +163,11 @@ func CompareRule( rule []string , risk string , rlen int)  bool {
 	return false
 }
 
-func CheckRequestCtx(L *lua.LState) *fasthttp.RequestCtx {
-	return L.GetExdata().(*fasthttp.RequestCtx)
+func CheckRequestCtx(co *lua.LState) *fasthttp.RequestCtx {
+	ctx , ok := co.ExData.Get("ctx").(*fasthttp.RequestCtx)
+	if ok {
+		return ctx
+	}
+
+	return nil
 }

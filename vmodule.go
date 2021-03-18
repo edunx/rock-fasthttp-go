@@ -63,7 +63,7 @@ func (self *vMCache) require( name string ) *vHandler {
 
 	self.L.Push( fn )
 	if e := self.L.PCall(0 , 1 , nil) ; e != nil {
-		pub.Out.Err("pcall %s fail , err: %v" , filename , err)
+		pub.Out.Err("pcall %s fail , err: %v" , filename , e)
 		return nil
 	}
 
